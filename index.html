@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Barcode Label Generator</title>
+<meta name="description" content="Generate print-ready UPC-A product and case/carton barcode labels, single or batch, as PNG or sheet PDF. Runs entirely in the browser.">
+<link rel="stylesheet" href="styles.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</head>
+<body>
+<header>
+  <h1>Barcode <span class="accent">Label Generator</span></h1>
+  <p>Product name, SKU, UPC in. Print-ready UPC-A label out.</p>
+</header>
+<div class="wrap">
+  <label class="cbbar" id="cb-bar">
+    <input type="checkbox" id="cb-on"> <b>Colour block format</b>
+    <span class="note" id="cb-note">Off. Labels print the current single-name format.</span>
+  </label>
+  <div class="tabs">
+    <button class="tab active" data-tab="single">Product label</button>
+    <button class="tab" data-tab="batch">Product batch</button>
+    <button class="tab" data-tab="carton">Case &amp; carton label</button>
+    <button class="tab" data-tab="cartonbatch">Case &amp; carton batch</button>
+  </div>
+
+  <!-- SINGLE -->
+  <div class="panel active" id="panel-single">
+    <div class="grid">
+      <div>
+        <div class="field">
+          <label for="s-name" id="s-name-lbl">Product name</label>
+          <input id="s-name" type="text" placeholder="Desk Lamp - Matte Black" value="Desk Lamp - Matte Black">
+        </div>
+        <div class="cbfields" id="s-cb">
+          <div class="field">
+            <label for="s-variant">Variant name (goes in the colour block)</label>
+            <input id="s-variant" type="text" placeholder="Matte Black">
+          </div>
+          <div class="field">
+            <label for="s-hex">Block colour</label>
+            <div class="cbpick">
+              <input type="color" id="s-color" value="#B0A696">
+              <input type="text" class="hex" id="s-hex" value="#B0A696" spellcheck="false" maxlength="7">
+            </div>
+            <div class="status info" id="s-hex-status"></div>
+          </div>
+        </div>
+        <div class="field">
+          <label for="s-sku">SKU</label>
+          <input id="s-sku" type="text" placeholder="ABC 03758" value="ABC 03758">
+        </div>
+        <div class="field">
+          <label for="s-upc">UPC (11 or 12 digits)</label>
+          <input id="s-upc" type="text" inputmode="numeric" placeholder="012345000010" value="012345000010">
+          <div class="status" id="s-upc-status"></div>
+        </div>
+        <label class="vtoggle"><input type="checkbox" class="upc-validate" checked> <b>UPC validity check</b> <span class="vtoggle-note">On. Only valid UPC-A codes print.</span></label>
+        <div class="btnrow">
+          <button class="btn" id="s-download">Download PNG</button>
+          <button class="btn ghost" id="s-preview">Preview sheet</button>
+          <button class="btn ghost" id="s-pdf">Sheet PDF</button>
+        </div>
+        <p class="hint">Enter 11 digits and the check digit is added for you. Enter 12 and it is verified.</p>
+      </div>
+      <div>
+        <div class="preview"><canvas id="s-canvas" width="1011" height="760"></canvas><div class="scale" id="s-scale"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- BATCH -->
+  <div class="panel" id="panel-batch">
+    <div class="grid">
+      <div>
+        <div class="field">
+          <label for="b-input">Paste one item per line</label>
+          <textarea id="b-input" spellcheck="false">Desk Lamp - Matte Black	ABC 03758	012345000010
+Desk Lamp - Brushed Steel	ABC 03774	012345000027
+Cable Tidy - 6 Pack	ABC 02633	012345000034</textarea>
+        </div>
+        <label class="vtoggle"><input type="checkbox" class="upc-validate" checked> <b>UPC validity check</b> <span class="vtoggle-note">On. Only valid UPC-A codes print.</span></label>
+        <div class="btnrow">
+          <button class="btn ghost" id="b-parse">Preview list</button>
+          <button class="btn" id="b-zip" disabled>Download all (ZIP)</button>
+        </div>
+        <div class="btnrow">
+          <button class="btn ghost" id="b-preview" disabled>Preview sheet</button>
+          <button class="btn ghost" id="b-pdf" disabled>Sheet PDF</button>
+        </div>
+        <p class="hint">Columns can be in any order. Tab or comma separated. The SKU is read from the SKU-shaped value, the UPC from the 11 to 12 digit number, and the name from the rest. Two SKU-like values means the last one is used.</p>
+      </div>
+      <div>
+        <div class="summary" id="b-summary">Paste your list and hit Preview list.</div>
+        <div id="b-results"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CASE / CARTON -->
+  <div class="panel" id="panel-carton">
+    <div class="grid">
+      <div>
+        <div class="field"><label for="c-name" id="c-name-lbl">Product name</label>
+          <input id="c-name" type="text" value="Cable Tidy - 6 Pack"></div>
+        <div class="cbfields" id="c-cb">
+          <div class="field"><label for="c-variant">Variant name (goes in the colour block)</label>
+            <input id="c-variant" type="text" placeholder="6 Pack"></div>
+          <div class="field"><label for="c-hex">Block colour</label>
+            <div class="cbpick">
+              <input type="color" id="c-color" value="#B0A696">
+              <input type="text" class="hex" id="c-hex" value="#B0A696" spellcheck="false" maxlength="7">
+            </div>
+            <div class="status info" id="c-hex-status"></div>
+          </div>
+        </div>
+        <div class="field"><label for="c-col">Collection (optional)</label>
+          <input id="c-col" type="text" placeholder="Workspace" value=""></div>
+        <div class="row2">
+          <div class="field"><label for="c-sku">SKU</label><input id="c-sku" type="text" value="ABC 00685"></div>
+          <div class="field"><label for="c-upc">UPC</label><input id="c-upc" type="text" inputmode="numeric" value="012345000102"></div>
+        </div>
+        <div class="field"><label for="c-pack">Packaging</label><select id="c-pack"></select></div>
+        <div class="row2">
+          <div class="field"><label for="c-units">Units per case</label><input id="c-units" type="number" min="1"></div>
+          <div class="field"><label for="c-cases">Cases per carton</label><input id="c-cases" type="number" min="0"></div>
+        </div>
+        <div class="field"><label>Label</label>
+          <div class="seg" id="c-type"><button data-v="carton" class="on">Carton</button><button data-v="case">Case</button></div></div>
+        <div class="status" id="c-status"></div>
+        <label class="vtoggle"><input type="checkbox" class="upc-validate" checked> <b>UPC validity check</b> <span class="vtoggle-note">On. Only valid UPC-A codes print.</span></label>
+        <div class="btnrow">
+          <button class="btn" id="c-pdf">Download sheet PDF</button>
+          <button class="btn ghost" id="c-preview">Preview sheet</button>
+          <button class="btn ghost" id="c-png">Single PNG</button>
+        </div>
+        <p class="hint">The PDF is a print-ready sheet of identical labels. Packaging fills in from the packaging reference based on the product name. Change it if the guess is wrong. Cases per carton <code>0</code> means the product ships carton-only.</p>
+      </div>
+      <div>
+        <div class="preview lbl"><canvas id="c-canvas" width="1200" height="600"></canvas><div class="scale" id="c-scale"></div></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- CASE / CARTON BATCH -->
+  <div class="panel" id="panel-cartonbatch">
+    <div class="grid">
+      <div>
+        <div class="field">
+          <label for="cb-input">Paste one item per line</label>
+          <textarea id="cb-input" spellcheck="false">Cable Tidy - 6 Pack	ABC 03678	012345000102
+Desk Lamp - Matte Black	ABC 00685	012345000119
+Monitor Riser - Oak	ABC 03649	012345000126</textarea>
+        </div>
+        <label class="vtoggle"><input type="checkbox" class="upc-validate" checked> <b>UPC validity check</b> <span class="vtoggle-note">On. Only valid UPC-A codes print.</span></label>
+        <div class="btnrow">
+          <button class="btn ghost" id="cb-parse">Preview list</button>
+          <button class="btn" id="cb-pdf" disabled>Download all (one PDF)</button>
+          <button class="btn ghost" id="cb-preview" disabled>Preview sheet</button>
+        </div>
+        <p class="hint">Paste rows straight from your product spreadsheet (whole rows are fine), or name, SKU, UPC in any order. Include a category column matching <code>SOURCE_TABS</code> in app.js so packaging is picked by product line. Items without confirmed packaging show <em>awaiting packaging</em> until you type the quantities. Each ticked label gets a full sheet, or the copies set under Sheet layout.</p>
+      </div>
+      <div>
+        <div class="summary" id="cb-summary">Paste your list and hit Preview list.</div>
+        <div id="cb-results"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- shared by both product tabs -->
+  <div id="product-shared">
+    <details>
+      <summary>Sheet layout (default Avery 5160 / 8160: 2.625 x 1 in, 30 per Letter sheet)</summary>
+      <div class="row4">
+        <div><label for="ps-lw">Label W (in)</label><input id="ps-lw" type="number" step="0.01" value="2.625"></div>
+        <div><label for="ps-lh">Label H (in)</label><input id="ps-lh" type="number" step="0.01" value="1"></div>
+        <div><label for="ps-cols">Columns</label><input id="ps-cols" type="number" value="3"></div>
+        <div><label for="ps-rows">Rows</label><input id="ps-rows" type="number" value="10"></div>
+        <div><label for="ps-mt">Top margin</label><input id="ps-mt" type="number" step="0.01" value="0.5"></div>
+        <div><label for="ps-ml">Left margin</label><input id="ps-ml" type="number" step="0.01" value="0.1875"></div>
+        <div><label for="ps-gx">Column gap</label><input id="ps-gx" type="number" step="0.01" value="0.125"></div>
+        <div><label for="ps-gy">Row gap</label><input id="ps-gy" type="number" step="0.01" value="0"></div>
+      </div>
+      <div class="row2" style="margin-top:12px">
+        <div><label for="ps-outline">Print cut outlines</label><select id="ps-outline"><option value="0">No (label sheets)</option><option value="1">Yes (plain paper test)</option></select></div>
+        <div style="display:flex;align-items:flex-end"><button class="btn ghost" id="ps-reset" type="button">Reset to Avery 5160</button></div>
+      </div>
+      <div class="row2" style="margin-top:12px">
+        <div><label for="ps-safe">Safe margin inside each label (in)</label><input id="ps-safe" type="number" step="0.01" min="0" value="0.08"></div>
+        <div></div>
+      </div>
+      <div class="row2" style="margin-top:12px">
+        <div><label for="pp-copies">Copies of each label</label><input id="pp-copies" type="number" min="1" placeholder="Full sheet"></div>
+        <div><label for="pp-start">Start at label #</label><input id="pp-start" type="number" min="1" value="1"></div>
+      </div>
+      <p class="hint">Labels are numbered left to right, top to bottom. Leave copies blank for a full sheet of each label. With copies set, labels in a batch follow each other on the same sheet.</p>
+      <p class="hint"><b>Printing:</b> print at Actual size (100%) with Fit to page turned off. Scaling shifts every row a little more than the one above it. The safe margin keeps text and digits clear of the label edges if the printer drifts slightly.</p>
+      <div class="status" id="ps-status"></div>
+    </details>
+  </div>
+
+  <!-- shared by both case & carton tabs -->
+  <div id="carton-shared" style="display:none">
+    <details>
+      <summary>Sheet layout (default Avery 5163 / 8163: 4 x 2 in, 10 per Letter sheet)</summary>
+      <div class="row4">
+        <div><label for="sh-lw">Label W (in)</label><input id="sh-lw" type="number" step="0.01" value="4"></div>
+        <div><label for="sh-lh">Label H (in)</label><input id="sh-lh" type="number" step="0.01" value="2"></div>
+        <div><label for="sh-cols">Columns</label><input id="sh-cols" type="number" value="2"></div>
+        <div><label for="sh-rows">Rows</label><input id="sh-rows" type="number" value="5"></div>
+        <div><label for="sh-mt">Top margin</label><input id="sh-mt" type="number" step="0.01" value="0.5"></div>
+        <div><label for="sh-ml">Left margin</label><input id="sh-ml" type="number" step="0.01" value="0.16"></div>
+        <div><label for="sh-gx">Column gap</label><input id="sh-gx" type="number" step="0.01" value="0.19"></div>
+        <div><label for="sh-gy">Row gap</label><input id="sh-gy" type="number" step="0.01" value="0"></div>
+      </div>
+      <div class="row2" style="margin-top:12px">
+        <div><label for="sh-company">Company line</label><input id="sh-company" type="text" placeholder="Your company name" value=""></div>
+        <div><label for="sh-outline">Print cut outlines</label><select id="sh-outline"><option value="0">No (label sheets)</option><option value="1">Yes (plain paper test)</option></select></div>
+      </div>
+      <div class="row2" style="margin-top:12px">
+        <div><label for="sh-digits">Numbers under barcode</label><select id="sh-digits"><option value="0">No (matches template)</option><option value="1">Yes</option></select></div>
+        <div style="display:flex;align-items:flex-end"><button class="btn ghost" id="sh-reset" type="button">Reset to Avery 5163</button></div>
+      </div>
+      <div class="row2" style="margin-top:12px">
+        <div><label for="sh-safe">Safe margin inside each label (in)</label><input id="sh-safe" type="number" step="0.01" min="0" value="0.06"></div>
+        <div></div>
+      </div>
+      <div class="row2" style="margin-top:12px">
+        <div><label for="pr-copies">Copies of each label</label><input id="pr-copies" type="number" min="1" placeholder="Full sheet"></div>
+        <div><label for="pr-start">Start at label #</label><input id="pr-start" type="number" min="1" value="1"></div>
+      </div>
+      <p class="hint"><b>Printing:</b> print at Actual size (100%) with Fit to page turned off. The safe margin keeps text clear of the label edges if the printer drifts slightly.</p>
+      <p class="hint">Use these to finish a half-used sheet. Labels are numbered left to right, top to bottom. Leave copies blank for a full sheet of each label. With copies set, labels in a batch follow each other on the same sheet.</p>
+      <div class="status" id="sh-status"></div>
+    </details>
+
+    <details>
+      <summary>Packaging reference</summary>
+      <table id="pack-ref"><thead><tr><th>Product type</th><th>Case</th><th>Carton</th><th>Case label reads</th><th>Carton label reads</th></tr></thead><tbody></tbody></table>
+      <p class="hint">If a product isn't listed here, choose Custom and confirm the quantities before printing.</p>
+    </details>
+  </div>
+</div>
+
+<div class="pdfview" id="pdfview"><div class="pdfview-box">
+  <div class="pdfview-bar"><span id="pdfview-name"></span><button class="btn" id="pdfview-dl" type="button">Download PDF</button><button class="btn ghost" id="pdfview-close" type="button">Close</button></div>
+  <div id="pdfview-pages"></div>
+</div></div>
+<div class="dlnote" id="dl-note"></div>
+<div class="zoom" id="zoom"><figure><img id="zoom-img" alt=""><figcaption id="zoom-cap"></figcaption></figure></div>
+
+<footer class="foot">
+  <div class="wrap foot-in">
+    <span>Barcode Label Generator</span>
+    <details><summary>About</summary>
+      <ul>
+        <li>Runs entirely in your browser. Nothing is uploaded, nothing is stored on a server.</li>
+        <li>UPC-A with automatic check digit, Code 128 fallback, colour block format, product and case/carton labels, batch mode, and print-ready sheet PDFs.</li>
+        <li>Built from a tool I wrote for an e-commerce manufacturer, rebuilt generic and split into separate HTML, CSS, and JS.</li>
+      </ul>
+    </details>
+  </div>
+</footer>
+<script src="app.js"></script>
+</body>
+</html>
